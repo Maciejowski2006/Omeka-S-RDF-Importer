@@ -74,7 +74,7 @@ def group_triples():
     # 2. Second pass - using the internal Omeka Resource ID, the script will send a PATCH request adding the missing
     #     information. Using the previously generated IDs, we can create connections between objects: If Object A
     #    references Object B with a URI, we can do a lookup on Object B's URI so we can assign its Omeka Resource ID as
-    #    a parameter. If the object URI is not in the dictionary, we can safely just add it as URI property type.
+    #    a parameter. If the object URI is not in the dictionary, we can add it as URI property type.
 def create_omeka_items():
     # First pass
     for subject, data in grouped_triples.items():
@@ -103,10 +103,9 @@ def create_omeka_items():
                 continue
 
             json_str[predicate.n3(g.namespace_manager)] = []
-            if (predicate.n3(g.namespace_manager) == "rdfs:label"):
+            if predicate.n3(g.namespace_manager) == "rdfs:label":
                 json_str["dcterms:title"] = []
             for obj in objects:
-                # If URI
                 create_property(json_str, obj, predicate.n3(g.namespace_manager))
                 if predicate.n3(g.namespace_manager) == "rdfs:label":
                     create_property(json_str, obj, "dcterms:title")
@@ -116,7 +115,6 @@ def create_omeka_items():
 
 def create_property(json_str, obj, predicate):
     if obj.n3(g.namespace_manager).startswith('<') and obj.n3(g.namespace_manager).endswith('>'):
-        # Object is in our dictionary, therefore should be in Omeka
         if obj in grouped_triples:
             subject_id = grouped_triples[obj]['id']
             json_str[predicate].append({
