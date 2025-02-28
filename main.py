@@ -4,8 +4,9 @@ import requests
 import configparser
 import os.path
 
-INPUT_FILE = ""
 AUTH = {}
+INPUT_FILE = ""
+SERVER_ADDRESS = ""
 VERBOSE = False
 
 config = configparser.ConfigParser()
@@ -16,6 +17,9 @@ if not os.path.isfile("config.ini"):
     }
     config['RDF'] = {
         'input_file': ''
+    }
+    config['Server'] = {
+        'URL': ''
     }
     config['Debug'] = {
         'verbose': 'yes'
@@ -30,13 +34,19 @@ else:
     config.read("config.ini")
     AUTH = config['Authentication']
     INPUT_FILE = config['RDF']['input_file']
+    SERVER_ADDRESS = config['Server']['URL']
     VERBOSE = config.getboolean('Debug', 'verbose')
+    if SERVER_ADDRESS.endswith("/"):
+        SERVER_ADDRESS = SERVER_ADDRESS[:-1]        
 
     if AUTH['key_identity'] == '' or AUTH['key_credential'] == '':
         print("Authentication variables must be set")
         exit(1)
     elif not os.path.isfile(INPUT_FILE):
         print("input_file does not exist.")
+        exit(1)
+    elif SERVER_ADDRESS == '':
+        print("Server address cannot empty.")
         exit(1)
 
 g = Graph()
@@ -47,8 +57,8 @@ classes = {}
 grouped_triples = {}
 
 def map_classes():
-    init_size = requests.get("http://70.34.242.54/api/resource_classes?per_page=10").headers["omeka-s-total-results"]
-    classes_json = requests.get(f"http://70.34.242.54/api/resource_classes?per_page={init_size}").json()
+    init_size = requests.get(f"{SERVER_ADDRESS}/api/resource_classes?per_page=10").headers["omeka-s-total-results"]
+    classes_json = requests.get(f"{SERVER_ADDRESS}/api/resource_classes?per_page={init_size}").json()
     for _class in classes_json:
         classes[_class['o:term']] = _class['o:id']
 
@@ -86,7 +96,7 @@ def create_omeka_items():
                 "o:id": get_omeka_class_id(data["predicates"]),
             }
         }
-        res = requests.post("http://70.34.242.54/api/items", json=json_str, params=AUTH).json()
+        res = requests.post(f"{SERVER_ADDRESS}/api/items", json=json_str, params=AUTH).json()
         data["id"] = res['o:id']
 
     # Second Pass
@@ -109,7 +119,7 @@ def create_omeka_items():
                 create_property(json_str, obj, predicate.n3(g.namespace_manager))
                 if predicate.n3(g.namespace_manager) == "rdfs:label":
                     create_property(json_str, obj, "dcterms:title")
-        requests.patch(f"http://70.34.242.54/api/items/{data['id']}", json=json_str, params=AUTH)
+        requests.patch(f"{SERVER_ADDRESS}/api/items/{data['id']}", json=json_str, params=AUTH)
         debug_print_info(json_str, data)
 
 
